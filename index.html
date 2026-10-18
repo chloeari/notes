@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Siema Notes</title>
+
+    <!-- Apple Web App setup for iOS Home Screen & Translucency -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Notizen">
+
+    <!-- Favicon & Apple Touch Icon (Pastel Pink with Note Icon as SVG Data URI) -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='115' fill='%23fbcfe8'/><path fill='%23121212' d='M368 64H144c-26.5 0-48 21.5-48 48v288c0 26.5 21.5 48 48 48h224c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48zm-16 80v32H160v-32h192zm0 80v32H160v-32h192zm-96 80v32H160v-32h96z'/></svg>">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='115' fill='%23fbcfe8'/><path fill='%23121212' d='M368 64H144c-26.5 0-48 21.5-48 48v288c0 26.5 21.5 48 48 48h224c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48zm-16 80v32H160v-32h192zm0 80v32H160v-32h192zm-96 80v32H160v-32h96z'/></svg>">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts import based on the image styles -->
+    <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Playfair+Display:ital,wght@0,600;1,600&family=Bodoni+Moda:ital,opsz,wght@0,6..96,600;1,6..96,600&family=Poppins:wght@400;500;600&family=Alex+Brush&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: transparent;
+        }
+
+        /* Font Family Helper Classes for Editor dropdown options */
+        .font-schreibschrift { font-family: 'Great Vibes', cursive; }
+        .font-siema { font-family: 'Playfair Display', serif; }
+        .font-vogue { font-family: 'Bodoni Moda', serif; letter-spacing: 0.1em; }
+        .font-sauber { font-family: 'Poppins', sans-serif; }
+        .font-photography { font-family: 'Alex Brush', cursive; }
+
+        /* Translucent / Glassmorphism backing for Web App on Home Screen */
+        html {
+            background-color: #121212;
+        }
+
+        /* Rich Text Editor Styling */
+        #noteBodyInput[contenteditable="true"]:empty:before {
+            content: attr(data-placeholder);
+            color: #525252;
+            pointer-events: none;
+            display: block;
+        }
+        #noteBodyInput b, #noteBodyInput strong {
+            font-weight: 700;
+        }
+        #noteBodyInput i, #noteBodyInput em {
+            font-style: italic;
+        }
+        #noteBodyInput u {
+            text-decoration: underline;
+        }
+
+        /* Schreib-Cursor (Caret) und Textmarkierung in Hellpastellpink */
+        #noteBodyInput, #noteTitleInput {
+            caret-color: #fbcfe8;
+        }
+        #noteBodyInput::selection, #noteTitleInput::selection,
+        #noteBodyInput *::selection {
+            background-color: rgba(251, 207, 232, 0.3);
+            color: #ffffff;
+        }
+    </style>
+</head>
+<body class="text-[#f5f5f7] h-screen overflow-hidden flex flex-col bg-transparent">
+
+    <div id="app" class="flex flex-1 h-full w-full overflow-hidden relative">
+
+        <!-- Sidebar: Notes List -->
+        <aside id="sidebar" class="w-full md:w-80 lg:w-96 glass-panel border-r border-[#2c2c2e]/60 flex flex-col h-full z-10 transition-transform duration-300 absolute md:relative inset-0 bg-[#121212]">
+            
+            <!-- Sidebar Header -->
+            <div class="p-4 pt-8 md:pt-4 border-b border-[#2c2c2e]/60 bg-transparent">
+                <div class="flex items-center justify-between">
+                    <h1 class="text-2xl font-bold tracking-tight text-white">Notizen von Siema</h1>
+                    <div class="flex items-center gap-2">
+                        <button onclick="createNewNote()" title="Neue Notiz" class="w-9 h-9 rounded-full bg-[#fbcfe8] hover:bg-[#f9a8d4] text-[#121212] flex items-center justify-center shadow-sm transition-transform active:scale-95">
+                            <i class="fa-solid fa-pen-to-square text-sm"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notes List Container -->
+            <div id="notesList" class="flex-1 overflow-y-auto divide-y divide-[#2c2c2e]/40">
+                <!-- Dynamically populated notes -->
+            </div>
+
+            <!-- Sidebar Footer Status -->
+            <div class="p-3 text-center text-xs text-neutral-400 border-t border-[#2c2c2e]/60 bg-transparent">
+                <span id="noteCount">0 Notizen</span>
+            </div>
+        </aside>
+
+        <!-- Main Editor Area -->
+        <main id="editorArea" class="flex-1 flex flex-col glass-main h-full overflow-hidden absolute md:relative inset-0 translate-x-full md:translate-x-0 transition-transform duration-300 z-20 bg-[#121212]">
+            
+            <!-- Editor Top Toolbar -->
+            <header class="h-14 pt-4 md:pt-0 border-b border-[#2c2c2e]/60 px-4 flex items-center justify-between bg-transparent">
+                <div class="flex items-center gap-3">
+                    <button onclick="backToSidebar()" class="md:hidden text-[#fbcfe8] font-medium flex items-center gap-1 text-sm py-1 px-2 rounded hover:bg-[#1e1e1e]">
+                        <i class="fa-solid fa-chevron-left"></i> Zurück
+                    </button>
+                </div>
+                
+                <!-- Formatting Tools, Font Picker & Delete Button -->
+                <div class="flex items-center gap-1.5 md:gap-2 overflow-x-auto py-1">
+                    <!-- Font Selector Dropdown -->
+                    <select id="fontSelect" onchange="changeFont(this.value)" class="bg-[#2c2c2e] text-xs text-neutral-200 border border-neutral-700 rounded-lg px-2 py-1.5 focus:outline-none focus:border-[#fbcfe8] transition cursor-pointer">
+                        <option value="Inter" style="font-family: 'Inter', sans-serif;">Standard (Inter)</option>
+                        <option value="Great Vibes" style="font-family: 'Great Vibes', cursive; font-size: 16px;">Schreibschrift</option>
+                        <option value="Playfair Display" style="font-family: 'Playfair Display', serif; font-size: 14px;">Siema (Serif)</option>
+                        <option value="Bodoni Moda" style="font-family: 'Bodoni Moda', serif; font-size: 14px;">VOGUE (High Fashion)</option>
+                        <option value="Poppins" style="font-family: 'Poppins', sans-serif;">Sauber (Clean)</option>
+                        <option value="Alex Brush" style="font-family: 'Alex Brush', cursive; font-size: 16px;">Kalligraphie (Photography)</option>
+                    </select>
+
+                    <div class="h-4 w-[1px] bg-neutral-700/60 mx-0.5"></div>
+
+                    <button id="btnBold" onclick="toggleFormat('bold')" title="Fett (Strg+B / Cmd+B)" class="w-8 h-8 rounded-lg font-bold flex items-center justify-center transition active:scale-95 text-sm bg-transparent text-neutral-400 hover:text-white hover:bg-neutral-800/60">
+                        B
+                    </button>
+                    <button id="btnItalic" onclick="toggleFormat('italic')" title="Kursiv (Strg+I / Cmd+I)" class="w-8 h-8 rounded-lg italic font-serif flex items-center justify-center transition active:scale-95 text-sm bg-transparent text-neutral-400 hover:text-white hover:bg-neutral-800/60">
+                        I
+                    </button>
+                    <button id="btnUnderline" onclick="toggleFormat('underline')" title="Unterstrichen (Strg+U / Cmd+U)" class="w-8 h-8 rounded-lg underline flex items-center justify-center transition active:scale-95 text-sm bg-transparent text-neutral-400 hover:text-white hover:bg-neutral-800/60">
+                        U
+                    </button>
+                    
+                    <div class="h-4 w-[1px] bg-neutral-700/60 mx-0.5"></div>
+
+                    <button onclick="deleteCurrentNote()" title="Notiz löschen" class="w-8 h-8 rounded-lg hover:bg-red-950/40 text-neutral-400 hover:text-red-400 flex items-center justify-center transition">
+                        <i class="fa-regular fa-trash-can text-sm"></i>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Active Note Editor -->
+            <div id="activeEditorContainer" class="flex-1 flex flex-col overflow-y-auto p-6 md:p-10 max-w-3xl w-full mx-auto">
+                <div id="emptyState" class="m-auto text-center text-neutral-500 hidden">
+                    <div class="w-16 h-16 bg-[#fbcfe8]/10 text-[#fbcfe8] rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl shadow-sm">
+                        <i class="fa-regular fa-note-sticky"></i>
+                    </div>
+                    <h2 class="text-lg font-semibold text-neutral-200 mb-1">Keine Notiz ausgewählt</h2>
+                    <p class="text-sm text-neutral-400 mb-4">Wähle eine Notiz aus der Liste aus oder erstelle eine neue.</p>
+                    <button onclick="createNewNote()" class="px-4 py-2 bg-[#fbcfe8] hover:bg-[#f9a8d4] text-[#121212] font-medium text-sm rounded-xl shadow transition active:scale-95">
+                        Neue Notiz erstellen
+                    </button>
+                </div>
+
+                <div id="noteContentForm" class="flex-1 flex flex-col">
+                    <input type="text" id="noteTitleInput" oninput="handleTitleInput(this.value)" placeholder="Titel" class="text-2xl md:text-3xl font-bold border-none focus:outline-none text-white placeholder:text-neutral-600 mb-4 bg-transparent">
+                    <div id="noteBodyInput" contenteditable="true" data-placeholder="Schreibe deine Notiz..." oninput="handleBodyInput()" onkeyup="updateFormattingState()" onmouseup="updateFormattingState()" onclick="updateFormattingState()" class="flex-1 border-none focus:outline-none text-neutral-200 text-base leading-relaxed bg-transparent whitespace-pre-wrap min-h-[200px]"><br></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // State Management
+        let notes = JSON.parse(localStorage.getItem('apple_notes_clone') || '[]');
+        let currentNoteId = null;
+
+        // Initialize App on Load
+        window.onload = function() {
+            if (notes.length === 0) {
+                // Create a welcome note if empty
+                const welcomeNote = {
+                    id: Date.now().toString(),
+                    title: 'Willkommen in Notizen von Siema',
+                    body: 'Dies ist deine neue Notiz-App im dunklen Apple-Design mit Pastellpink-Akzenten.<br><br>• Wähle eine Schriftart wie <span style="font-family: \'Great Vibes\'; font-size: 1.4em;">Schreibschrift</span>, <span style="font-family: \'Bodoni Moda\'; letter-spacing: 0.05em;">VOGUE</span> oder <span style="font-family: \'Alex Brush\'; font-size: 1.4em;">Photography</span> aus.<br>• Klicke oben auf <b>B</b>, <i>I</i>, oder <u>U</u> um deinen Text zu formatieren.<br>• Markiere Text nachträglich, um die Schriftart oder Formatierung anzupassen.<br>• Alle Änderungen werden automatisch gespeichert.',
+                    updatedAt: new Date().toISOString()
+                };
+                notes.push(welcomeNote);
+                saveNotes();
+            }
+            
+            // Only select default note on larger screens (desktop / landscape)
+            if (window.innerWidth >= 768 && notes.length > 0) {
+                selectNote(notes[0].id);
+            } else {
+                renderNotesList();
+            }
+        };
+
+        function saveNotes() {
+            localStorage.setItem('apple_notes_clone', JSON.stringify(notes));
+        }
+
+        function extractPlainText(html) {
+            const temp = document.createElement('div');
+            temp.innerHTML = html || '';
+            return temp.textContent || temp.innerText || '';
+        }
+
+        function renderNotesList() {
+            const listContainer = document.getElementById('notesList');
+            
+            // Sort by updatedAt descending
+            const sortedNotes = [...notes].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+
+            document.getElementById('noteCount').innerText = `${notes.length} ${notes.length === 1 ? 'Notiz' : 'Notizen'}`;
+
+            if (sortedNotes.length === 0) {
+                listContainer.innerHTML = `
+                    <div class="p-8 text-center text-neutral-500 text-sm">
+                        Keine Notizen vorhanden.
+                    </div>
+                `;
+                return;
+            }
+
+            listContainer.innerHTML = sortedNotes.map(note => {
+                const isActive = note.id === currentNoteId;
+                const plainText = extractPlainText(note.body);
+                const snippet = plainText ? plainText.substring(0, 50) + (plainText.length > 50 ? '...' : '') : 'Kein weiterer Text';
+                
+                return `
+                    <div onclick="selectNote('${note.id}')" class="p-3.5 cursor-pointer transition-colors ${isActive ? 'bg-[#fbcfe8] text-[#121212]' : 'hover:bg-[#2c2c2e] text-neutral-100'} group">
+                        <div class="flex items-baseline justify-between mb-1">
+                            <h3 class="font-semibold text-sm truncate flex-1 ${isActive ? 'text-[#121212]' : 'text-neutral-100'}">${escapeHtml(note.title || 'Unbenannte Notiz')}</h3>
+                        </div>
+                        <div class="flex items-center gap-2 text-xs">
+                            <p class="truncate ${isActive ? 'text-neutral-700' : 'text-neutral-400'}">${escapeHtml(snippet)}</p>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function selectNote(id) {
+            currentNoteId = id;
+            const note = notes.find(n => n.id === id);
+
+            const emptyState = document.getElementById('emptyState');
+            const noteForm = document.getElementById('noteContentForm');
+            const titleInput = document.getElementById('noteTitleInput');
+            const bodyInput = document.getElementById('noteBodyInput');
+
+            if (note) {
+                emptyState.classList.add('hidden');
+                noteForm.classList.remove('hidden');
+
+                titleInput.value = note.title;
+                bodyInput.innerHTML = note.body || '';
+
+                // Slide editor completely over sidebar on mobile/portrait screens
+                const editorArea = document.getElementById('editorArea');
+                editorArea.classList.remove('translate-x-full');
+                
+                setTimeout(updateFormattingState, 50);
+            }
+
+            renderNotesList();
+        }
+
+        function backToSidebar() {
+            document.getElementById('editorArea').classList.add('translate-x-full');
+            currentNoteId = null;
+            renderNotesList();
+        }
+
+        function createNewNote() {
+            const newNote = {
+                id: Date.now().toString(),
+                title: '',
+                body: '',
+                updatedAt: new Date().toISOString()
+            };
+
+            notes.unshift(newNote);
+            saveNotes();
+            selectNote(newNote.id);
+            renderNotesList();
+
+            // Focus title input
+            setTimeout(() => {
+                document.getElementById('noteTitleInput').focus();
+            }, 50);
+        }
+
+        function handleTitleInput(value) {
+            if (!currentNoteId) return;
+            const note = notes.find(n => n.id === currentNoteId);
+            if (note) {
+                note.title = value;
+                note.updatedAt = new Date().toISOString();
+                saveNotes();
+                renderNotesList();
+            }
+        }
+
+        function handleBodyInput() {
+            if (!currentNoteId) return;
+            const note = notes.find(n => n.id === currentNoteId);
+            if (note) {
+                const bodyInput = document.getElementById('noteBodyInput');
+                note.body = bodyInput.innerHTML;
+                note.updatedAt = new Date().toISOString();
+                saveNotes();
+                renderNotesList();
+            }
+            updateFormattingState();
+        }
+
+        function toggleFormat(command) {
+            document.execCommand(command, false, null);
+            handleBodyInput();
+            updateFormattingState();
+        }
+
+        function changeFont(fontName) {
+            if (!fontName) return;
+            const bodyInput = document.getElementById('noteBodyInput');
+            bodyInput.focus();
+            
+            document.execCommand('fontName', false, fontName);
+            handleBodyInput();
+            updateFormattingState();
+        }
+
+        function updateFormattingState() {
+            if (!currentNoteId) return;
+
+            const isBold = document.queryCommandState('bold');
+            const isItalic = document.queryCommandState('italic');
+            const isUnderline = document.queryCommandState('underline');
+
+            setButtonActive('btnBold', isBold);
+            setButtonActive('btnItalic', isItalic);
+            setButtonActive('btnUnderline', isUnderline);
+
+            const fontName = document.queryCommandValue('fontName');
+            const fontSelect = document.getElementById('fontSelect');
+            if (fontSelect && fontName) {
+                const cleanFont = fontName.replace(/["']/g, '');
+                let foundMatch = false;
+                for (let i = 0; i < fontSelect.options.length; i++) {
+                    if (fontSelect.options[i].value.toLowerCase() === cleanFont.toLowerCase()) {
+                        fontSelect.selectedIndex = i;
+                        foundMatch = true;
+                        break;
+                    }
+                }
+                if (!foundMatch && cleanFont !== '') {
+                    fontSelect.value = "Inter";
+                }
+            }
+        }
+
+        function setButtonActive(btnId, active) {
+            const btn = document.getElementById(btnId);
+            if (!btn) return;
+            if (active) {
+                btn.classList.add('bg-[#fbcfe8]', 'text-[#121212]', 'shadow-sm');
+                btn.classList.remove('bg-transparent', 'text-neutral-400', 'hover:text-white', 'hover:bg-neutral-800/60');
+            } else {
+                btn.classList.remove('bg-[#fbcfe8]', 'text-[#121212]', 'shadow-sm');
+                btn.classList.add('bg-transparent', 'text-neutral-400', 'hover:text-white', 'hover:bg-neutral-800/60');
+            }
+        }
+
+        function deleteCurrentNote() {
+            if (!currentNoteId) return;
+            
+            notes = notes.filter(n => n.id !== currentNoteId);
+            saveNotes();
+
+            currentNoteId = null;
+            document.getElementById('emptyState').classList.remove('hidden');
+            document.getElementById('noteContentForm').classList.add('hidden');
+
+            if (window.innerWidth < 768) {
+                document.getElementById('editorArea').classList.add('translate-x-full');
+            }
+
+            renderNotesList();
+        }
+
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+        }
+    </script>
+</body>
+</html>
